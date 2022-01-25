@@ -19,6 +19,14 @@ spec:
     - name: sonar-settings
       configMap:
         name: sonar-maven-properties
+  mergeConfig:
+    method: squash
+    query:
+      blockLabels:
+        - hold
+      checks:
+        - code-analysis
+      approveRequired: false
   jobs:
     preSubmit:
       - name: copy-source
@@ -27,7 +35,7 @@ spec:
           cp -r ./src $(workspaces.maven-workspace.path)/src
         when:
           branch:
-            - main
+            - master
       - name: code-analysis
         tektonTask:
           taskRef:
@@ -48,12 +56,15 @@ spec:
           - copy-source
         when:
           branch:
-            - main
+            - master
     postSubmit:
       - name: copy-source
         image: docker.io/alpine:3.13.6
         script: |
           cp -r . $(workspaces.maven-workspace.path)
+        when:
+          branch:
+            - master
       - name: code-analysis
         tektonTask:
           taskRef:
@@ -72,6 +83,9 @@ spec:
               workspace: sonar-settings
         after:
           - copy-source
+        when:
+          branch:
+            - master
       - name: maven-package
         image: docker.io/maven:3.8.4
         script: |
@@ -80,18 +94,24 @@ spec:
           cp target/echo_maven-0.0.1-SNAPSHOT.jar $(workspaces.maven-workspace.path)/echo_maven-0.0.1-SNAPSHOT.jar
         after:
           - code-analysis
+        when:
+          tag:
+            - v.*
       - name: build-and-push
         image: quay.io/buildah/stable
         script: |
           IMG_TAG=${CI_HEAD_REF#refs/tags/}
           cp $(workspaces.maven-workspace.path)/echo_maven-0.0.1-SNAPSHOT.jar ./
           buildah bud --tls-verify=false --storage-driver=vfs --format docker -f $(workspaces.maven-workspace.path)/Dockerfile.gen -t changjjjjjjjj/maven-test:dev $(workspaces.maven-workspace.path)
-          buildah login --tls-verify=false -u changjjjjjjjj -p docker*9642 docker.io
+          buildah login --tls-verify=false -u changjjjjjjjj -p 
           buildah push --tls-verify=false --storage-driver=vfs changjjjjjjjj/maven-test:dev docker://changjjjjjjjj/maven-test:dev
         securityContext:
           privileged: true
         after:
           - maven-package
+        when:
+          tag:
+            - v.*
       - name: image-scan
         image: docker.io/bitnami/trivy:latest
         script: |
@@ -101,3 +121,6 @@ spec:
           privileged: true
         after:
           - build-and-push
+        when:
+          tag:
+            - v.*
