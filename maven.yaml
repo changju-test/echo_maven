@@ -84,7 +84,7 @@ spec:
         image: quay.io/buildah/stable
         script: |
           IMG_TAG=${CI_HEAD_REF#refs/tags/}
-          cp $(workspaces.maven-workspace.path)/joinUs_maven-0.0.1-SNAPSHOT.jar ./
+          cp $(workspaces.maven-workspace.path)/echo_maven-0.0.1-SNAPSHOT.jar ./
           buildah bud --tls-verify=false --storage-driver=vfs --format docker -f $(workspaces.maven-workspace.path)/Dockerfile.gen -t changjjjjjjjj/maven-test:dev $(workspaces.maven-workspace.path)
           buildah login --tls-verify=false -u changjjjjjjjj -p docker*9642 docker.io
           buildah push --tls-verify=false --storage-driver=vfs changjjjjjjjj/maven-test:dev docker://changjjjjjjjj/maven-test:dev
