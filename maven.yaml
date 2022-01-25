@@ -1,0 +1,103 @@
+apiVersion: cicd.tmax.io/v1
+kind: IntegrationConfig
+metadata:
+  name: maven-test-config
+spec:
+  git:
+    type: github
+    apiUrl: ''
+    repository: changju-test/echo_maven
+    token:
+      valueFrom:
+        secretKeyRef:
+          name: cj-git-token
+          key: token
+  workspaces:
+    - name: maven-workspace
+      persistentVolumeClaim:
+        claimName: maven-pvc
+    - name: sonar-settings
+      configMap:
+        name: sonar-maven-properties
+  jobs:
+    preSubmit:
+      - name: copy-source
+        image: docker.io/alpine:3.13.6
+        script: |
+          cp -r ./src $(workspaces.maven-workspace.path)/src
+        when:
+          branch:
+            - main
+      - name: code-analysis
+        tektonTask:
+          taskRef:
+            local:
+              name: sonarqube-scanner
+              kind: Task
+          params:
+            - name: SONAR_HOST_URL
+              stringVal: http://sonarqube.172.22.11.16.nip.io
+            - name: SONAR_PROJECT_KEY
+              stringVal: maven-test
+          workspaces:
+            - name: source-dir
+              workspace: maven-workspace
+            - name: sonar-settings
+              workspace: sonar-settings
+        after:
+          - copy-source
+        when:
+          branch:
+            - main
+    postSubmit:
+      - name: copy-source
+        image: docker.io/alpine:3.13.6
+        script: |
+          cp -r . $(workspaces.maven-workspace.path)
+      - name: code-analysis
+        tektonTask:
+          taskRef:
+            local:
+              name: sonarqube-scanner
+              kind: Task
+          params:
+            - name: SONAR_HOST_URL
+              stringVal: http://sonarqube.172.22.11.16.nip.io
+            - name: SONAR_PROJECT_KEY
+              stringVal: maven-test
+          workspaces:
+            - name: source-dir
+              workspace: maven-workspace
+            - name: sonar-settings
+              workspace: sonar-settings
+        after:
+          - copy-source
+      - name: maven-package
+        image: docker.io/maven:3.8.4
+        script: |
+          mvn clean
+          mvn package
+          cp target/echo_maven-0.0.1-SNAPSHOT.jar $(workspaces.maven-workspace.path)/echo_maven-0.0.1-SNAPSHOT.jar
+        after:
+          - code-analysis
+      - name: build-and-push
+        image: quay.io/buildah/stable
+        script: |
+          IMG_TAG=${CI_HEAD_REF#refs/tags/}
+          cp $(workspaces.maven-workspace.path)/joinUs_maven-0.0.1-SNAPSHOT.jar ./
+          buildah bud --tls-verify=false --storage-driver=vfs --format docker -f $(workspaces.maven-workspace.path)/Dockerfile.gen -t changjjjjjjjj/maven-test:dev $(workspaces.maven-workspace.path)
+          buildah login --tls-verify=false -u changjjjjjjjj -p docker*9642 docker.io
+          buildah push --tls-verify=false --storage-driver=vfs changjjjjjjjj/maven-test:dev docker://changjjjjjjjj/maven-test:dev
+        securityContext:
+          privileged: true
+        after:
+          - maven-package
+      - name: image-scan
+        image: docker.io/bitnami/trivy:latest
+        script: |
+          IMG_TAG=${CI_HEAD_REF#refs/tags/}
+          TRIVY_INSECURE=true trivy image changjjjjjjjj/maven-test:dev
+        securityContext:
+          privileged: true
+        after:
+          - build-and-push
