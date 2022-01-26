@@ -298,3 +298,39 @@ objects:
               tag:
                 - v.*
 ---
+apiVersion: tmax.io/v1
+kind: TemplateInstance
+metadata:
+  name: maven-ic-instance
+  namespace: default
+spec:
+  clustertemplate:
+    metadata:
+      name: maven-image-integrationconfig-template
+    parameters:
+      - name: CONFIG_NAME
+        value: maven-example-config
+      - name: CONFIG_SECRET
+        value: <Docker config secret name>
+      - name: GIT_TYPE
+        value: github
+      - name: GIT_REPO
+        value: changju-test/echo_maven
+      - name: TOKEN_SECRET_NAME
+        value: <Secret name including token info>
+      - name: PVC_NAME
+        value: maven-pvc
+      - name: SONAR_HOST_URL_TPL
+        value: <Sonarqube host url>
+      - name: SONAR_PROJECT_KEY_TPL
+        value: <Sonarqube project key>
+      - name: JAR_NAME
+        value: echo_maven-0.0.1-SNAPSHOT.jar
+      - name: REGISTRY_URL
+        value: <Registry URL>
+      - name: IMG_PATH
+        value: <example/target-repo>
+      - name: REG_USER
+        value: <User name>
+      - name: REG_PASS
+        admin: <User password>
