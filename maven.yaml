@@ -256,7 +256,7 @@ objects:
                 - name: sonar-settings
                   workspace: sonar-settings
             after:
-              - copy-source
+              - prepare-sonar
             when:
               branch:
                 - master
