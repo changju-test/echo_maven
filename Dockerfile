@@ -1,6 +1,6 @@
 FROM docker.io/openjdk:11
 
-ADD ./joinUs_maven-0.0.1-SNAPSHOT /app/
+ADD ./echo_maven-0.0.1-SNAPSHOT.jar /app/
 
 WORKDIR /app
 
